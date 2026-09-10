@@ -12,24 +12,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Build with Buildozer Action
+      uses: ArtemSydoryk/buildozer-action@v1
       with:
-        python-version: '3.10'
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libffi-dev libssl-dev
-        pip install --upgrade buildozer cython==0.29.33
-
-    - name: Accept Android SDK Licenses
-      run: |
-        yes | yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-
-    - name: Build with Buildozer
-      run: |
-        buildozer android debug
+        command: buildozer android debug
+        subpath: '.'
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
