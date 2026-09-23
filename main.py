@@ -1,127 +1,75 @@
-from gtts import gTTS 
-from playsound import playsound
-import threading
-import json
-import time as tm
-import time
-from datetime import datetime
-
-def speak(text):
-    filename = "voice_" + str(int(time.time())) + ".mp3"
-    tts = gTTS(text=text, lang="te", slow=True)
-    tts.save(filename)
-    playsound(filename)
+from kivy.app import App
+from kivy. uix . boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix. button import Button
+from kivy.uix. textinput import TextInput
+from kivy.clock import Clock
 
 
-try:
-    with open("tasks.json", "r") as file:
-        tasks = json.load(file)
-except FileNotFoundError:
-    tasks = []
+class SmartVoiceApp(App):
+    def build(self):
+        self.layout = BoxLayout(orientation="vertical", padding=20, spacing=20)
+        title = Label(text = "Smart Voice Planner", font_size=30)
+        add_button = Button(text="Add New Task", font_size=22)
+        add_button.bind(on_press=self.add_new_task)
+        self.layout.add_widget(title)
+        self.layout.add_widget(add_button)
+        return self.layout
+    def add_new_task(self,instance):
+      print("Add New Task Clicked")
+      self.task_input = TextInput(hint_text="Enter Task Name",multiline=False,font_size=22)
+      self.time_input = TextInput(hint_text="Enter Time (e.g. 9:00 AM)", multiline=False, font_size=22)
+      save_button = Button(text="Save Task", font_size=22)
+      save_button.bind(on_press=self.save_task)
+      self.layout.add_widget(self.task_input)
+      self.layout.add_widget(self.time_input)
+      self.layout.add_widget(save_button)
+    async def make_task_voice(self,text):
+         from gtts import gTTS
+         output_file="task_voice.mp3"
+         tts = gTTS(text=text, lang="te", slow=True)
+         tts.save(output_file)
+         return output_file
+    def speak_task(self,task_name,task_time):
+        import asyncio
+        from kivy.core.audio import SoundLoader
+        print("SPEAK TASK STARTED")
+        print("TASK:", task_name)
 
-def reminder():
-    spoken = set()
+        try:
+             voice_file=asyncio.run(self.make_task_voice(task_name))
+             print("VOICE FILE CREATED:", voice_file)
+             sound = SoundLoader.load(voice_file)
+             if sound:
+                print("SOUND LOADED")
+                sound.play()
+                print("VOICE PLAY COMMAND SENT")
+             else:
+                print("SOUND LOAD FAILED")
 
-    while True:
-         now = datetime.now()
-         current_time = now.strftime("%H:%M")
-         current_date = now.strftime("%d-%m-%Y")
-         for item in tasks:
-             task = item["task"]
-             task_time = item["time"]
-             task_date = item["date"]
-             repeat = item["repeat"]
-             should_remind = False
-             if repeat == "1":
-                should_remind = True
-             elif repeat =="2":
-                 saved_date= datetime.strptime(task_date,"%d-%m-%Y")
-                 should_remind = now.weekday() == saved_date.weekday()
-             elif repeat =="3":
-                 should_remind= (current_date == task_date)
-             elif repeat =="4":
-                 saved_date=datetime.strptime(task_date, "%d-%m-%Y")
-                 should_remind= now.day == saved_date.day
-             elif repeat =="5":
-                 saved_date=datetime.strptime(task_date, "%d-%m-%Y")
-                 should_remind= (now.month == saved_date.month and now.day ==now.day == saved_date.day)
-                              
-                                  
-             if should_remind:    
-                 if current_time == task_time and task_time not in spoken:
-                     speak(f"{task} cheyalisina time ayyindi")
-                     spoken.add(task_time)
-             tm.sleep(1)
-thread = threading.Thread(target=reminder, daemon=True)
-thread.start()
-
-while True:
-    print("===============================================")
-    print("            Smart Voice Planner                ")
-    print("===============================================")
-
-    print("1. Add New Task")
-    print("2. View Tasks")
-    print("3. Exit")
-    print("4. Delete Task")
-    print("5. Edit Task")
-    choice = input("choose an option:")
-    print(choice)
-    if choice == "1":
-        print("you selected add new Task")
-        task = input("Enter your new task:")
-        task_time = input("Enter time (HH:MM) AM/PM):")
-        task_date = input("Enter date (DD-MM-YYYY):")
-        print("1. Daily")
-        print("2. Every Week")
-        print("3. No Repeat")
-        print("4. Every Month")
-        print("5. Every Year")
-
-        repeat = input("choose repeat option:")
-
-        tasks.append({"task": task,"time": task_time,"date": task_date, "repeat": repeat})
-        with open("tasks.json", "w") as file:
-            json.dump(tasks, file)
-            print("Task Added Successfully")
+        except Exception as e:
+              print("VOICE ERROR:", e)
         
-    elif choice == "2":
-        print("your Tasks:")
-        for i, item in enumerate(tasks, start=1):
-            repeat_name = {"1": "Daily","2": "Weekly", "3": "No Repeat", "4": "Every Month", "5": "Every Year"}
-            print(i, "-",item["task"],"-",item["time"], "_", repeat_name.get(item["repeat"], item["repeat"]))
-    elif choice == "3":
-        print("Exit")
-        break
-    elif choice == "4":
-        print("your Tasks:")
+    def save_task(self,instance):
+      task_name = self.task_input.text
+      task_time = self.time_input.text
+      task_label= Label(text=f"{task_time}-{task_name}", font_size=22)
+      self.layout.add_widget(task_label)
 
-        for i, item in enumerate(tasks, start=1):
-            print(i,"_",item["task"], "_",item["time"])
-        delete_task = int(input("Enter task number to delete:"))
-        if 1<= delete_task <=len(tasks):
-            tasks.pop(delete_task-1)
-            with open("tasks.json", "w") as file:
-                json.dump(tasks,file)
-            print("Task deleted successfully")
-        else:
-            print("invalid task number")
-    elif choice == "5":
-        print("your Tasks:")
+      from datetime import datetime
 
-        for i, item in enumerate(tasks, start=1):
-            print(i, "_", item["task"], "_", item["time"])
-        edit_task = int(input("Enter task number to edit:"))
-        if 1 <=edit_task <=len(tasks):
-                item = tasks[edit_task-1]
-                item["task"] = input("Enter new task name:")
-                item["time"] = input("Enter new time (HH:MM):")
-                item["date"] = input("Enter new date (DD-MM-YYYY):")
-                item["repeat"] = input("choose repeat option(1-Dail,2-Weekly,3-None,4-Monthly,5-Yearly):")               
-                with open("tasks.json", "w") as file:
-                    json.dump(tasks,file)
-                    print("Task updated successfully")
-        else:
-                print("invalid task number")
-            
-        
+      current_time=datetime.now().replace(second=0,microsecond=0)
+      target_time=datetime.strptime(task_time,"%I:%M %p")
+      target_time=target_time.replace(year=current_time.year, month=current_time.month,day=current_time.day)
+      delay=(target_time-current_time).total_seconds()
+
+   
+
+      if delay<0:
+         delay+=24*60*60
+
+      Clock.schedule_once(lambda dt:self.speak_task(task_name,task_time),delay)
+      print("TASK SCHEDULED", delay)
+      self.task_input.text=" "
+      self.time_input.text=" "
+SmartVoiceApp().run()
